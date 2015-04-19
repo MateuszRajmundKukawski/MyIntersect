@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QFileDialog
 # Initialize Qt resources from file resources.py
 import resources_rc
 from qgis.core import *
@@ -71,8 +71,8 @@ class MyIntersect:
         self.toolbar.setObjectName(u'MyIntersect')
         self.basePath = '/home/mati/Dokumenty/wtykadane/'
         self.runButton =  self.dlg.runButton.clicked.connect(self.runApp)
-        self.deleteButton =  self.dlg.deleteButton.clicked.connect(self.del_id)
-
+        self.deleteButton =  self.dlg.deleteButton.clicked.connect(self.polygon_centroids)
+        self.initMy()
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -172,7 +172,18 @@ class MyIntersect:
             callback=self.run,
             parent=self.iface.mainWindow())
 
-
+    def initMy(self):
+        #self.dlg.budynkiComboBox.addItem('')
+        layerList = self.iface.mapCanvas().layers()
+        for layer in layerList:
+            if (layer.type() == layer.VectorLayer ) and ( layer.geometryType() == QGis.Polygon ):
+                self.dlg.budynkiComboBox.addItem(layer.name())
+                self.dlg.dzialkiComboBox.addItem(layer.name())
+        self.wrokDirButton = self.dlg.wrokDirButton.clicked.connect(self.setWorDir)
+        self.budynkiButton = self.dlg.budynkiButton.clicked.connect(self.setBudynki)
+        self.dzialkiButton = self.dlg.dzialkiButton.clicked.connect(self.setDzialki)
+        self.budynkiPath = None
+        self.dzialkiPath = None
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -427,7 +438,61 @@ class MyIntersect:
         del writer
 
 
+    def setWorDir(self):
+        pass
 
+
+    def setBudynki(self):
+        if self.dzialkiPath:
+            self.workDirPath = os.path.dirname(self.dzialkiPath)
+        else:
+            self.workDirPath= ""
+        self.budynkiPath = QFileDialog.getOpenFileName(self.dlg, 'Open file', self.workDirPath, "*.shp")
+        self.dlg.budynki_label.setText(os.path.basename(self.budynkiPath))
+
+    def setDzialki(self):
+        if self.budynkiPath:
+             self.workDirPath = os.path.dirname(self.budynkiPath)
+        else:
+            self.workDirPath= ""
+
+        self.dzialkiPath = QFileDialog.getOpenFileName(self.dlg, 'Open file', self.workDirPath, "*.shp")
+        self.dlg.dzialki_label.setText(os.path.basename(self.dzialkiPath))
+
+
+    def polygon_centroids(self):
+        buildings = str(self.dlg.budynkiComboBox.currentText())
+        self.vlayer = buildings
+        mapCanvas = self.iface.mapCanvas()
+
+        self.buildingsLayer = self.getVectorLayerByName(buildings)
+        layer = self.buildingsLayer
+        layer.featureCount()
+        vprovider = layer.dataProvider()
+        print vprovider
+        self.vproviderCRS = vprovider.crs()
+        komuniakt = buildings + ": " + str(layer.featureCount())
+        #QMessageBox.about(self.dlg, 'test', komuniakt)
+        #outFilePath
+        self.centroid_file = self.tempDir+buildings+'_centroid.shp'
+        writer = QgsVectorFileWriter( self.centroid_file,'CP1250', vprovider.fields(),
+                                  QGis.WKBPoint, vprovider.crs(),'ESRI Shapefile' )
+        inFeat = QgsFeature()
+        outFeat = QgsFeature()
+        nFeat = vprovider.featureCount()
+        nElement = 0
+        fit = vprovider.getFeatures()
+        while fit.nextFeature( inFeat ):
+            nElement += 1
+            inGeom = inFeat.geometry()
+            atMap = inFeat.attributes()
+            outGeom = inGeom.centroid()
+            if outGeom is None:
+                return "math_error"
+            outFeat.setAttributes( atMap )
+            outFeat.setGeometry( QgsGeometry( outGeom ) )
+            writer.addFeature( outFeat )
+        del writer
 
     # def chuj(self):
     #                 """Run method that performs all the real work"""
@@ -457,3 +522,11 @@ class MyIntersect:
     #             result_provider.addFeatures(new_features)
     #             QgsMapLayerRegistry.instance().addMapLayer(result)
     #         pass
+    def getVectorLayerByName( self, myName ):
+        layermap = QgsMapLayerRegistry.instance().mapLayers()
+        for name, layer in layermap.iteritems():
+            if layer.type() == QgsMapLayer.VectorLayer and layer.name() == myName:
+                if layer.isValid():
+                    return layer
+                else:
+                    return None
