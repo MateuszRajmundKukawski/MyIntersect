@@ -20,7 +20,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QVariant
 from PyQt4.QtGui import QAction, QIcon, QFileDialog
 # Initialize Qt resources from file resources.py
 import resources_rc
@@ -207,23 +207,35 @@ class MyIntersect:
             # substitute with your code.
             pass
     def runApp(self):
-        self.basePath = '/home/mati/Dokumenty/wtykadane/'
-        #first intersect
-        flayer =self.basePath+'budynki_centroids.shp'
-        slayer =self.basePath+'dzialki.shp'
-        olayer =self.basePath+'wyniki/bud_cen_is_dz.shp'
+        # self.basePath = '/home/mati/Dokumenty/wtykadane/'
+        # #first intersect
+        # flayer =self.basePath+'budynki_centroids.shp'
+        # slayer =self.basePath+'dzialki.shp'
+        # olayer =self.basePath+'wyniki/bud_cen_is_dz.shp'
+
+        self.polygon_centroids()
+        flayer = self.centroid_file
+        slayer = self.dzialkiPath
+        olayer = self.temDirPath+'bud_cen_is_dz.shp'
+
+
+
+
+
+
         self.run_intersect(flayer, slayer, olayer)
-        self.del_id()
-        flayer = self.basePath+'budynki.shp'
-        slayer = olayer
-        olayer = self.basePath+'wyniki/budynki_id_dzialki.shp'
-        self.run_intersect(flayer, slayer, olayer)
-        flayer = olayer
-        olayer = self.basePath+'wyniki/budynki_id_dzialki_nodes.shp'
-        self.extract_nodes(flayer,olayer )
-        flayer = olayer
-        olayer = self.basePath+"wyniki/buffer_06.shp"
-        self.nodeBuffer(flayer, olayer)
+
+        self.del_id(olayer, 'NUMER', 'RAW_NUMER')
+        # flayer = self.basePath+'budynki.shp'
+        # slayer = olayer
+        # olayer = self.basePath+'wyniki/budynki_id_dzialki.shp'
+        # self.run_intersect(flayer, slayer, olayer)
+        # flayer = olayer
+        # olayer = self.basePath+'wyniki/budynki_id_dzialki_nodes.shp'
+        # self.extract_nodes(flayer,olayer )
+        # flayer = olayer
+        # olayer = self.basePath+"wyniki/buffer_06.shp"
+        # self.nodeBuffer(flayer, olayer)
 
 
         pass
@@ -243,15 +255,15 @@ class MyIntersect:
         self.polygon_layer = QgsVectorLayer(self.polygon_file_path,os.path.splitext(self.polygon_file_path)[0], 'ogr')
         self.polygon_provider =  self.polygon_layer.dataProvider()
         self.point_provider =  self.point_layer.dataProvider()
-        print('punktow:', self.point_provider.featureCount(),)
-        print('poligonow:', self.polygon_provider.featureCount())
+        #print('punktow:', self.point_provider.featureCount(),)
+        #print('poligonow:', self.polygon_provider.featureCount())
 
-        print 'Kliknieto'
+        #print 'Kliknieto'
 
         findex = self.getSpatialIndex(self.point_provider)
-        print(type(findex))
+        #print(type(findex))
         findexlist = self.getInsert(findex, self.polygon_provider)
-        print( findexlist,)
+        #print( findexlist,)
         #fields()
         fieldList1= self.point_provider.fields()
         fieldList2 = self.polygon_provider.fields()
@@ -277,7 +289,7 @@ class MyIntersect:
         inFeatB = QgsFeature()
         fit1 = self.point_provider.getFeatures()
         while fit1.nextFeature(inFeat): #dla punktow
-            print 'in while'
+            #print 'in while'
             inGeom = inFeat.geometry()
             atMap1 = inFeat.attributes()
             outFeat.setGeometry(inGeom)
@@ -288,7 +300,7 @@ class MyIntersect:
                 #layer2.select(inGeom.buffer(10,2).boundingBox(), False)
                 #joinList = layer2.selectedFeatures()
                 joinList = index.intersects( inGeom.buffer(10,2).boundingBox() )
-                print 'len(joinList)', len(joinList)
+                #print 'len(joinList)', len(joinList)
             else:
                 joinList = index.intersects( inGeom.boundingBox() )
                 'len(joinList)', len(joinList)
@@ -304,14 +316,14 @@ class MyIntersect:
                 #print 'in join za self'
 
                 if inGeom.intersects(inFeatB.geometry()):
-                    print 'w if inGeom.intersects(inFeatB.geometry()):'
+                    #print 'w if inGeom.intersects(inFeatB.geometry()):'
                     atMap2 = inFeatB.attributes()
                     atMap = atMap1
                     atMap2 = atMap2
                     atMap.extend(atMap2)
                     atMap = dict(zip(seq, atMap))
                     atMap1.extend(atMap2)
-                    print 'in last loop'
+                    #print 'in last loop'
                     #break
             outFeat.setAttributes(atMap1)
             writer1.addFeature(outFeat)
@@ -327,24 +339,62 @@ class MyIntersect:
 
 
 
-    def del_id(self):
-        layer_path = self.basePath+'wyniki/bud_cen_is_dz.shp'
+    def del_id(self, filePath, fieldName, newFieldName):
+        layer_path = filePath
         layer = QgsVectorLayer(layer_path ,os.path.splitext(layer_path)[0], 'ogr')
         provider = layer.dataProvider()
         fieldsList = provider.fields()
-        print fieldsList
-        print len(fieldsList)
-        i = 0
-        for field in fieldsList:
-            print 'w petli'
-            print field.name()
-            if field.name()=='id_budynku':
-                del_index = i
+        #print fieldsList
+        fieldsCount=  len(fieldsList)
+        field_index = 0
+        i=0
+        layer.dataProvider().addAttributes([QgsField(newFieldName, QVariant.Int)])
+        #
+        layer.updateFields()
+        index_newFieldName=0
+        fieldsList = provider.fields()
+        for f in fieldsList:
+            if f.name() == newFieldName:
+                index_newFieldName = i
             i+=1
 
-        print(del_index)
-        provider.deleteAttributes([del_index])
+
+        exp = QgsExpression('99')
+        #exp.prepare(layer.pendingFields())
+        for feature in provider.getFeatures():
+            fid = feature.id()
+            #print fid
+            atr = {index_newFieldName: "666"}
+            provider.changeAttributeValues({fid: atr})
+            #value = exp.evaluate(feature, newFieldName)
+            #print value
         layer.updateFields()
+        print(index_newFieldName)
+        self.iface.addVectorLayer(filePath, 'temLayer', 'ogr')
+        #self.iface.addVectorLayer(self.budynkiPath, 'buuu', 'ogr')
+
+
+
+
+
+
+        # def delete_all(newFieldName):
+        #     for field in fieldsList:
+        #         print 'w petli'
+        #         print field.name()
+        #         if field.name()== fieldName:
+        #             field_index = i
+        #         i+=1
+        #     layer.dataProvider().addAttributes([QgsField(newFieldName, QVariant.String)])
+        #
+        #     print(field_index)
+        #     for index in range(fieldsCount):
+        #         if index<> field_index:
+        #             provider.deleteAttributes([index])
+        #
+        #
+        #     #provider.deleteAttributes([del_index])
+        #     layer.updateFields()
 
 
     def getSpatialIndex(self, workLayer):
@@ -357,7 +407,7 @@ class MyIntersect:
         for feature in workLayer.getFeatures():
             #print(feature, type(feature), feature['numer'])
             geom = QgsGeometry(feature.geometry())
-            print(geom.area(),)
+            #print(geom.area(),)
             index_list.append(spatial_index.intersects(geom.boundingBox()))
         return index_list
 
@@ -461,20 +511,27 @@ class MyIntersect:
 
 
     def polygon_centroids(self):
-        buildings = str(self.dlg.budynkiComboBox.currentText())
-        self.vlayer = buildings
-        mapCanvas = self.iface.mapCanvas()
+        # buildings = str(self.dlg.budynkiComboBox.currentText())
+        # self.vlayer = buildings
+        # mapCanvas = self.iface.mapCanvas()
+        #
+        # self.buildingsLayer = self.getVectorLayerByName(buildings)
+        # layer = self.buildingsLayer
+        layer = QgsVectorLayer(self.budynkiPath,os.path.splitext(self.budynkiPath)[0], 'ogr')
 
-        self.buildingsLayer = self.getVectorLayerByName(buildings)
-        layer = self.buildingsLayer
         layer.featureCount()
         vprovider = layer.dataProvider()
-        print vprovider
+        #print vprovider
         self.vproviderCRS = vprovider.crs()
-        komuniakt = buildings + ": " + str(layer.featureCount())
+        #komuniakt = buildings + ": " + str(layer.featureCount())
         #QMessageBox.about(self.dlg, 'test', komuniakt)
         #outFilePath
-        self.centroid_file = self.tempDir+buildings+'_centroid.shp'
+###################################################3
+        self.temDirPath = self.workDirPath+"/temp/"
+        if not os.path.exists(self.temDirPath):
+            os.mkdir(self.temDirPath)
+        buildings = os.path.basename(self.budynkiPath)[:-4]
+        self.centroid_file = self.temDirPath+buildings+'_centroid.shp'
         writer = QgsVectorFileWriter( self.centroid_file,'CP1250', vprovider.fields(),
                                   QGis.WKBPoint, vprovider.crs(),'ESRI Shapefile' )
         inFeat = QgsFeature()
