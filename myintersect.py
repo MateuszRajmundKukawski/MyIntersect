@@ -206,36 +206,7 @@ class MyIntersect:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
-    def runApp(self):
-        # self.basePath = '/home/mati/Dokumenty/wtykadane/'
-        # #first intersect
-        # flayer =self.basePath+'budynki_centroids.shp'
-        # slayer =self.basePath+'dzialki.shp'
-        # olayer =self.basePath+'wyniki/bud_cen_is_dz.shp'
 
-        self.polygon_centroids()
-        flayer = self.centroid_file
-        slayer = self.dzialkiPath
-        olayer = self.temDirPath+'bud_cen_is_dz.shp'
-
-
-
-
-
-
-        self.run_intersect(flayer, slayer, olayer)
-
-        self.del_id(olayer, 'NUMER', 'RAW_NUMER')
-        # flayer = self.basePath+'budynki.shp'
-        # slayer = olayer
-        # olayer = self.basePath+'wyniki/budynki_id_dzialki.shp'
-        # self.run_intersect(flayer, slayer, olayer)
-        # flayer = olayer
-        # olayer = self.basePath+'wyniki/budynki_id_dzialki_nodes.shp'
-        # self.extract_nodes(flayer,olayer )
-        # flayer = olayer
-        # olayer = self.basePath+"wyniki/buffer_06.shp"
-        # self.nodeBuffer(flayer, olayer)
 
 
         pass
@@ -339,23 +310,29 @@ class MyIntersect:
 
 
 
-    def del_id(self, filePath, fieldName, newFieldName):
+    def addAdnCopy(self, filePath, oldFileName, newFieldName):
         layer_path = filePath
-        layer = QgsVectorLayer(layer_path ,os.path.splitext(layer_path)[0], 'ogr')
+        layer = QgsVectorLayer(filePath ,os.path.splitext(filePath)[0], 'ogr')
         provider = layer.dataProvider()
         fieldsList = provider.fields()
         #print fieldsList
         fieldsCount=  len(fieldsList)
         field_index = 0
         i=0
-        layer.dataProvider().addAttributes([QgsField(newFieldName, QVariant.Int)])
+        layer.dataProvider().addAttributes([QgsField(newFieldName, QVariant.String)])
         #
         layer.updateFields()
+        layer = QgsVectorLayer(filePath ,os.path.splitext(filePath)[0], 'ogr')
+        provider = layer.dataProvider()
+
         index_newFieldName=0
+        index_oldFileName = 0
         fieldsList = provider.fields()
         for f in fieldsList:
             if f.name() == newFieldName:
                 index_newFieldName = i
+            elif f.name() == oldFileName:
+                index_oldFileName = i
             i+=1
 
 
@@ -364,12 +341,75 @@ class MyIntersect:
         for feature in provider.getFeatures():
             fid = feature.id()
             #print fid
-            atr = {index_newFieldName: "666"}
+            atr = {index_newFieldName: str(feature[index_oldFileName])}
+            #print(atr)
+
             provider.changeAttributeValues({fid: atr})
-            #value = exp.evaluate(feature, newFieldName)
-            #print value
         layer.updateFields()
-        print(index_newFieldName)
+
+
+
+    def deleteAll(self, filePath, fieldName):
+        layer = QgsVectorLayer(filePath ,os.path.splitext(filePath)[0], 'ogr')
+        provider = layer.dataProvider()
+        fieldList = provider.fields()
+        index_fieldName = 0
+        i = 0
+        for field in fieldList:
+            print field.name()
+            if field.name()==fieldName:
+                index_fieldName = i
+            i+=1
+        print fieldList[index_fieldName].name(), fieldName, fieldList[-1].name()
+        kk = 0
+        for kk in range(len(fieldList)):
+            if kk<> index_fieldName:
+                layer.dataProvider().deleteAttributes([kk])
+
+
+
+
+
+
+
+
+
+
+
+        # for name, i in zip(provider.fields(), range(len( provider.fields()))):
+        #
+        #     #print name.name(), type(i), type(index_newFieldName)
+        #     if  i <> index_newFieldName:
+        #         print name.name(), type(i), type(index_newFieldName)
+        #         layer.dataProvider().deleteAttributes([i])
+        #
+        #
+        # layer.updateFields()
+        # fieldsList = provider.fields()
+        # delIndex = 0
+        # kk = 0
+        # for f in fieldsList:
+        #     if f.name()== newFieldName:
+        #         delIndex = kk
+        #     kk+=1
+        # for name, i in zip(provider.fields(), range(len( provider.fields()))):
+        #
+        #     #print name.name(), type(i), type(index_newFieldName)
+        #     if  i <> delIndex:
+        #         print name.name(), type(i), type(delIndex)
+        #         layer.dataProvider().deleteAttributes([i])
+        #
+        #
+        #
+
+
+
+
+
+
+
+
+
         self.iface.addVectorLayer(filePath, 'temLayer', 'ogr')
         #self.iface.addVectorLayer(self.budynkiPath, 'buuu', 'ogr')
 
@@ -587,3 +627,35 @@ class MyIntersect:
                     return layer
                 else:
                     return None
+    def runApp(self):
+        # self.basePath = '/home/mati/Dokumenty/wtykadane/'
+        # #first intersect
+        # flayer =self.basePath+'budynki_centroids.shp'
+        # slayer =self.basePath+'dzialki.shp'
+        # olayer =self.basePath+'wyniki/bud_cen_is_dz.shp'
+
+        self.polygon_centroids()
+        flayer = self.centroid_file
+        slayer = self.dzialkiPath
+        olayer = self.temDirPath+'bud_cen_is_dz.shp'
+
+
+
+
+
+
+        self.run_intersect(flayer, slayer, olayer)
+
+        self.addAdnCopy(olayer, 'NUMER', 'RAW_NUMER')
+        #self.deleteAll(olayer, "RAW_NUMER")
+        #self.deleteAll(olayer, "RAW_NUMER")
+        # flayer = self.basePath+'budynki.shp'
+        # slayer = olayer
+        # olayer = self.basePath+'wyniki/budynki_id_dzialki.shp'
+        # self.run_intersect(flayer, slayer, olayer)
+        # flayer = olayer
+        # olayer = self.basePath+'wyniki/budynki_id_dzialki_nodes.shp'
+        # self.extract_nodes(flayer,olayer )
+        # flayer = olayer
+        # olayer = self.basePath+"wyniki/buffer_06.shp"
+        # self.nodeBuffer(flayer, olayer)
